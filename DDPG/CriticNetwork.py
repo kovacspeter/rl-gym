@@ -2,15 +2,16 @@ import tensorflow as tf
 import numpy as np
 import math
 
-HIDDEN1_UNITS = 40
-HIDDEN2_UNITS = 30
+HIDDEN1_UNITS = 400
+HIDDEN2_UNITS = 300
+
 
 class CriticNetwork(object):
 
-    def __init__(self, sess, state_size, action_size, BATCH_SIZE, TAO, LEARNING_RATE):
+    def __init__(self, sess, state_size, action_size, BATCH_SIZE, TAU, LEARNING_RATE):
         self.sess = sess
         self.BATCH_SIZE = BATCH_SIZE
-        self.TAO = TAO
+        self.TAU = TAU
         self.LEARNING_RATE = LEARNING_RATE
 
         # CRITIC
@@ -18,8 +19,8 @@ class CriticNetwork(object):
             self.create_critic_network(state_size, action_size)
 
         # TARGET CRITIC
-        self.target_state, self.target_action, self.target_out, self.target_net =\
-            self.create_critic_network(state_size, action_size)
+        self.target_state, self.target_action, self.target_update, self.target_net, self.target_out = self.crate_critic_target_network(
+            state_size, action_size, self.net)
 
         # TRAINING
         self.y = tf.placeholder("float", [None, 1])
@@ -33,17 +34,6 @@ class CriticNetwork(object):
 
         # INIT VARIABLES
         self.sess.run(tf.initialize_all_variables())
-
-		# COPY WARS TO TARGET
-        self.sess.run([
-            self.target_net[0].assign(self.net[0]),
-            self.target_net[1].assign(self.net[1]),
-            self.target_net[2].assign(self.net[2]),
-            self.target_net[3].assign(self.net[3]),
-            self.target_net[4].assign(self.net[4]),
-            self.target_net[5].assign(self.net[5]),
-            self.target_net[6].assign(self.net[6])
-        ])
 
     def gradients(self, states, actions):
         return self.sess.run(self.action_grads, feed_dict={
@@ -71,27 +61,28 @@ class CriticNetwork(object):
         })
 
     def target_train(self):
-        self.sess.run([
-            self.target_net[0].assign(
-                (1 - self.TAO) * self.target_net[0] + self.TAO * self.net[0]),
-            self.target_net[1].assign(
-                (1 - self.TAO) * self.target_net[1] + self.TAO * self.net[1]),
-            self.target_net[2].assign(
-                (1 - self.TAO) * self.target_net[2] + self.TAO * self.net[2]),
-            self.target_net[3].assign(
-                (1 - self.TAO) * self.target_net[3] + self.TAO * self.net[3]),
-            self.target_net[4].assign(
-                (1 - self.TAO) * self.target_net[4] + self.TAO * self.net[4]),
-            self.target_net[5].assign(
-                (1 - self.TAO) * self.target_net[5] + self.TAO * self.net[5]),
-            self.target_net[6].assign(
-                (1 - self.TAO) * self.target_net[6] + self.TAO * self.net[6])
-        ])
+        self.sess.run(self.target_update)
+
+    def crate_critic_target_network(self, input_dim, action_dim, net):
+        # input
+        state = tf.placeholder(tf.float32, shape=[None, input_dim])
+        action = tf.placeholder(tf.float32, shape=[None, action_dim])
+
+        ema = tf.train.ExponentialMovingAverage(decay=1 - self.TAU)
+        target_update = ema.apply(net)
+        target_net = [ema.average(x) for x in net]
+
+        h1 = tf.nn.relu(tf.matmul(state, target_net[0]) + target_net[1])
+        h2 = tf.nn.relu(tf.matmul(
+            h1, target_net[2]) + tf.matmul(action, target_net[3]) + target_net[4])
+        out = tf.nn.tanh(tf.matmul(h2, target_net[5]) + target_net[6])
+
+        return state, action, target_update, target_net, out
 
     def create_critic_network(self, state_dim, action_dim):
         # input
-        state=tf.placeholder(tf.float32, shape=[None, state_dim])
-        action=tf.placeholder(tf.float32, shape=[None, action_dim])
+        state = tf.placeholder(tf.float32, shape=[None, state_dim])
+        action = tf.placeholder(tf.float32, shape=[None, action_dim])
 
         # network weights
         W1 = self.weight_variable([state_dim, HIDDEN1_UNITS])
@@ -110,9 +101,9 @@ class CriticNetwork(object):
         return state, action, out, [W1, b1, W2, W2_action, b2, W3, b3]
 
     def weight_variable(self, shape):
-      initial = tf.truncated_normal(shape, stddev=0.001)
-      return tf.Variable(initial)
+        initial = tf.truncated_normal(shape, stddev=0.001)
+        return tf.Variable(initial)
 
     def bias_variable(self, shape):
-      initial = tf.constant(0.001, shape=shape)
-      return tf.Variable(initial)
+        initial = tf.constant(0.001, shape=shape)
+        return tf.Variable(initial)

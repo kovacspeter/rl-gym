@@ -7,9 +7,9 @@ from CriticNetwork import CriticNetwork
 import timeit
 
 BUFFER_SIZE = 10000
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 GAMMA = 0.99
-TAO = 0.01
+TAU = 0.001
 LEARNING_RATE = 0.0001
 ENVIRONMENT_NAME = 'Pendulum-v0'
 
@@ -19,8 +19,8 @@ input_dim = env.observation_space.shape[0]
 
 sess = tf.InteractiveSession()
 
-actor = ActorNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAO, LEARNING_RATE)
-critic = CriticNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAO, LEARNING_RATE)
+actor = ActorNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LEARNING_RATE)
+critic = CriticNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LEARNING_RATE*10)
 buff = ReplayBuffer(BUFFER_SIZE)
 
 for ep in range(25000):
@@ -64,8 +64,11 @@ for ep in range(25000):
         actor.train(states, grads)
 
         # update the target networks
+        # start = timeit.default_timer()
         actor.target_train()
         critic.target_train()
+        # stop = timeit.default_timer()
+        # print "5", stop - start
 
         # move to next state
         s_t = s_t1
