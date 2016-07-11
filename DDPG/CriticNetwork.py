@@ -2,17 +2,18 @@ import tensorflow as tf
 import numpy as np
 import math
 
-HIDDEN1_UNITS = 400
-HIDDEN2_UNITS = 300
+HIDDEN1_UNITS = 200
+HIDDEN2_UNITS = 100
 
 
 class CriticNetwork(object):
 
-    def __init__(self, sess, state_size, action_size, BATCH_SIZE, TAU, LEARNING_RATE):
+    def __init__(self, sess, state_size, action_size, BATCH_SIZE, TAU, LEARNING_RATE, L2):
         self.sess = sess
         self.BATCH_SIZE = BATCH_SIZE
         self.TAU = TAU
         self.LEARNING_RATE = LEARNING_RATE
+        self.L2 = L2
 
         # CRITIC
         self.state, self.action, self.out, self.net = \
@@ -24,8 +25,9 @@ class CriticNetwork(object):
 
         # TRAINING
         self.y = tf.placeholder("float", [None, 1])
-        self.loss = 1 / BATCH_SIZE * \
-            tf.reduce_sum(tf.pow(self.y - self.out, 2))
+        self.error = tf.reduce_mean(tf.square(self.y - self.out))
+        self.weight_decay = tf.add_n([self.L2 * tf.nn.l2_loss(var) for var in self.net])
+        self.loss = self.error + self.weight_decay
         self.optimize = tf.train.AdamOptimizer(
             LEARNING_RATE).minimize(self.loss)
 
@@ -75,7 +77,7 @@ class CriticNetwork(object):
         h1 = tf.nn.relu(tf.matmul(state, target_net[0]) + target_net[1])
         h2 = tf.nn.relu(tf.matmul(
             h1, target_net[2]) + tf.matmul(action, target_net[3]) + target_net[4])
-        out = tf.nn.tanh(tf.matmul(h2, target_net[5]) + target_net[6])
+        out = tf.matmul(h2, target_net[5]) + target_net[6]
 
         return state, action, target_update, target_net, out
 

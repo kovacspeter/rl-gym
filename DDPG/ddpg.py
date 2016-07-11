@@ -6,31 +6,47 @@ from ActorNetwork import ActorNetwork
 from CriticNetwork import CriticNetwork
 import timeit
 
+# REPLAY BUFFER CONSTS
 BUFFER_SIZE = 10000
-BATCH_SIZE = 64
+BATCH_SIZE = 128
+# FUTURE REWARD DECAY
 GAMMA = 0.99
+# TARGET NETWORK UPDATE STEP
 TAU = 0.001
-LEARNING_RATE = 0.0001
+# LEARNING_RATE
+LRA = 0.0001
+LRC = 0.001
+#ENVIRONMENT_NAME
 ENVIRONMENT_NAME = 'Pendulum-v0'
+# L2 REGULARISATION
+L2C = 0.01
+L2A = 0
 
 env = gym.make(ENVIRONMENT_NAME)
 action_dim = env.action_space.shape[0]
+action_high = env.action_space.high
+action_low = env.action_space.low
+
+print action_high, action_low
 input_dim = env.observation_space.shape[0]
 
 sess = tf.InteractiveSession()
 
-actor = ActorNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LEARNING_RATE)
-critic = CriticNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LEARNING_RATE*10)
+actor = ActorNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LRA, L2A)
+critic = CriticNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LRC, L2C)
 buff = ReplayBuffer(BUFFER_SIZE)
+# exploration = OUNoise(action_dim)
 
 for ep in range(25000):
     # open up a game state
     s_t, r_0, done = env.reset(), 0, False
-    print "EPISODE ", ep
+
+    REWARD = 0
+    # exploration.reset()
     for t in range(100):
         env.render()
         # select action according to current policy and exploration noise
-        a_t = actor.predict([s_t]) + np.random.randn(action_dim)# TODO ADD NOISE
+        a_t = actor.predict([s_t]) + (np.random.randn(action_dim)/(ep + t + 1))
 
         # execute action and observe reward and new state
         s_t1, r_t, done, info = env.step(a_t[0])
@@ -64,11 +80,10 @@ for ep in range(25000):
         actor.train(states, grads)
 
         # update the target networks
-        # start = timeit.default_timer()
         actor.target_train()
         critic.target_train()
-        # stop = timeit.default_timer()
-        # print "5", stop - start
 
         # move to next state
         s_t = s_t1
+        REWARD += r_t
+    print "EPISODE ", ep, "ENDED UP WITH REWARD: ", REWARD
