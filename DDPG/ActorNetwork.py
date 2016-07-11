@@ -2,8 +2,8 @@ import tensorflow as tf
 import numpy as np
 import math
 
-HIDDEN1_UNITS = 200
-HIDDEN2_UNITS = 100
+HIDDEN1_UNITS = 400
+HIDDEN2_UNITS = 300
 
 
 class ActorNetwork(object):

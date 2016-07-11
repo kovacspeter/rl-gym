@@ -2,8 +2,8 @@ import tensorflow as tf
 import numpy as np
 import math
 
-HIDDEN1_UNITS = 200
-HIDDEN2_UNITS = 100
+HIDDEN1_UNITS = 400
+HIDDEN2_UNITS = 300
 
 
 class CriticNetwork(object):
@@ -77,7 +77,7 @@ class CriticNetwork(object):
         h1 = tf.nn.relu(tf.matmul(state, target_net[0]) + target_net[1])
         h2 = tf.nn.relu(tf.matmul(
             h1, target_net[2]) + tf.matmul(action, target_net[3]) + target_net[4])
-        out = tf.matmul(h2, target_net[5]) + target_net[6]
+        out = tf.identity(tf.matmul(h2, target_net[5]) + target_net[6])
 
         return state, action, target_update, target_net, out
 
@@ -98,7 +98,7 @@ class CriticNetwork(object):
         # computation
         h1 = tf.nn.relu(tf.matmul(state, W1) + b1)
         h2 = tf.nn.relu(tf.matmul(h1, W2) + tf.matmul(action, W2_action) + b2)
-        out = tf.matmul(h2, W3) + b3
+        out = tf.identity(tf.matmul(h2, W3) + b3)
 
         return state, action, out, [W1, b1, W2, W2_action, b2, W3, b3]
 
