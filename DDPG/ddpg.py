@@ -27,7 +27,6 @@ action_dim = env.action_space.shape[0]
 action_high = env.action_space.high
 action_low = env.action_space.low
 
-print action_high, action_low
 input_dim = env.observation_space.shape[0]
 
 sess = tf.InteractiveSession()
@@ -37,7 +36,9 @@ critic = CriticNetwork(sess, input_dim, action_dim, BATCH_SIZE, TAU, LRC, L2C)
 buff = ReplayBuffer(BUFFER_SIZE)
 # exploration = OUNoise(action_dim)
 
-for ep in range(25000):
+env.monitor.start('experiments/' + 'Pendulum-v0',force=True)
+
+for ep in range(1000):
     # open up a game state
     s_t, r_0, done = env.reset(), 0, False
 
@@ -87,3 +88,6 @@ for ep in range(25000):
         s_t = s_t1
         REWARD += r_t
     print "EPISODE ", ep, "ENDED UP WITH REWARD: ", REWARD
+
+# Dump result info to disk
+env.monitor.close()
